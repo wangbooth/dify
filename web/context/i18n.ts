@@ -1,18 +1,46 @@
-import { createContext } from 'use-context-selector'
+import {
+  createContext,
+  useContext,
+} from 'use-context-selector'
 import type { Locale } from '@/i18n'
+import { getDocLanguage, getLanguage, getPricingPageLanguage } from '@/i18n/language'
+import { noop } from 'lodash-es'
 
 type II18NContext = {
   locale: Locale
   i18n: Record<string, any>
-  setLocaleOnClient: (locale: Locale, reloadPage?: boolean) => void
-  //   setI8N: (i18n: Record<string, string>) => void,
+  setLocaleOnClient: (_lang: Locale, _reloadPage?: boolean) => void
 }
 
 const I18NContext = createContext<II18NContext>({
-  locale: 'en',
+  locale: 'en-US',
   i18n: {},
-  setLocaleOnClient: (lang: Locale, reloadPage?: boolean) => { },
-  //   setI8N: () => {},
+  setLocaleOnClient: noop,
 })
 
+export const useI18N = () => useContext(I18NContext)
+export const useGetLanguage = () => {
+  const { locale } = useI18N()
+
+  return getLanguage(locale)
+}
+export const useGetPricingPageLanguage = () => {
+  const { locale } = useI18N()
+
+  return getPricingPageLanguage(locale)
+}
+
+const defaultDocBaseUrl = 'https://docs.dify.ai'
+export const useDocLink = (baseUrl?: string): ((path?: string, pathMap?: { [index: string]: string }) => string) => {
+  let baseDocUrl = baseUrl || defaultDocBaseUrl
+  baseDocUrl = (baseDocUrl.endsWith('/')) ? baseDocUrl.slice(0, -1) : baseDocUrl
+  const { locale } = useI18N()
+  const docLanguage = getDocLanguage(locale)
+  return (path?: string, pathMap?: { [index: string]: string }): string => {
+    const pathUrl = path || ''
+    let targetPath = (pathMap) ? pathMap[locale] || pathUrl : pathUrl
+    targetPath = (targetPath.startsWith('/')) ? targetPath.slice(1) : targetPath
+    return `${baseDocUrl}/${docLanguage}/${targetPath}`
+  }
+}
 export default I18NContext

@@ -10,6 +10,7 @@ import { fetchCurrentWorkspace, fetchLanggeniusVersion, fetchUserProfile } from 
 import type { App } from '@/types/app'
 import type { ICurrentWorkspace, LangGeniusVersionResponse, UserProfileResponse } from '@/models/common'
 import MaintenanceNotice from '@/app/components/header/maintenance-notice'
+import { noop } from 'lodash-es'
 
 export type AppContextValue = {
   apps: App[]
@@ -18,10 +19,14 @@ export type AppContextValue = {
   mutateUserProfile: VoidFunction
   currentWorkspace: ICurrentWorkspace
   isCurrentWorkspaceManager: boolean
+  isCurrentWorkspaceOwner: boolean
+  isCurrentWorkspaceEditor: boolean
+  isCurrentWorkspaceDatasetOperator: boolean
   mutateCurrentWorkspace: VoidFunction
   pageContainerRef: React.RefObject<HTMLDivElement>
   langeniusVersionInfo: LangGeniusVersionResponse
   useSelector: typeof useSelector
+  isLoadingCurrentWorkspace: boolean
 }
 
 const initialLangeniusVersionInfo = {
@@ -42,26 +47,30 @@ const initialWorkspaceInfo: ICurrentWorkspace = {
   created_at: 0,
   role: 'normal',
   providers: [],
-  in_trail: true,
 }
 
 const AppContext = createContext<AppContextValue>({
   apps: [],
-  mutateApps: () => { },
+  mutateApps: noop,
   userProfile: {
     id: '',
     name: '',
     email: '',
     avatar: '',
+    avatar_url: '',
     is_password_set: false,
   },
   currentWorkspace: initialWorkspaceInfo,
   isCurrentWorkspaceManager: false,
-  mutateUserProfile: () => { },
-  mutateCurrentWorkspace: () => { },
+  isCurrentWorkspaceOwner: false,
+  isCurrentWorkspaceEditor: false,
+  isCurrentWorkspaceDatasetOperator: false,
+  mutateUserProfile: noop,
+  mutateCurrentWorkspace: noop,
   pageContainerRef: createRef(),
   langeniusVersionInfo: initialLangeniusVersionInfo,
   useSelector,
+  isLoadingCurrentWorkspace: false,
 })
 
 export function useSelector<T>(selector: (value: AppContextValue) => T): T {
@@ -75,15 +84,17 @@ export type AppContextProviderProps = {
 export const AppContextProvider: FC<AppContextProviderProps> = ({ children }) => {
   const pageContainerRef = useRef<HTMLDivElement>(null)
 
-  const { data: appList, mutate: mutateApps } = useSWR({ url: '/apps', params: { page: 1 } }, fetchAppList)
+  const { data: appList, mutate: mutateApps } = useSWR({ url: '/apps', params: { page: 1, limit: 30, name: '' } }, fetchAppList)
   const { data: userProfileResponse, mutate: mutateUserProfile } = useSWR({ url: '/account/profile', params: {} }, fetchUserProfile)
-  const { data: currentWorkspaceResponse, mutate: mutateCurrentWorkspace } = useSWR({ url: '/workspaces/current', params: {} }, fetchCurrentWorkspace)
+  const { data: currentWorkspaceResponse, mutate: mutateCurrentWorkspace, isLoading: isLoadingCurrentWorkspace } = useSWR({ url: '/workspaces/current', params: {} }, fetchCurrentWorkspace)
 
   const [userProfile, setUserProfile] = useState<UserProfileResponse>()
   const [langeniusVersionInfo, setLangeniusVersionInfo] = useState<LangGeniusVersionResponse>(initialLangeniusVersionInfo)
   const [currentWorkspace, setCurrentWorkspace] = useState<ICurrentWorkspace>(initialWorkspaceInfo)
   const isCurrentWorkspaceManager = useMemo(() => ['owner', 'admin'].includes(currentWorkspace.role), [currentWorkspace.role])
-
+  const isCurrentWorkspaceOwner = useMemo(() => currentWorkspace.role === 'owner', [currentWorkspace.role])
+  const isCurrentWorkspaceEditor = useMemo(() => ['owner', 'admin', 'editor'].includes(currentWorkspace.role), [currentWorkspace.role])
+  const isCurrentWorkspaceDatasetOperator = useMemo(() => currentWorkspace.role === 'dataset_operator', [currentWorkspace.role])
   const updateUserProfileAndVersion = useCallback(async () => {
     if (userProfileResponse && !userProfileResponse.bodyUsed) {
       const result = await userProfileResponse.json()
@@ -118,11 +129,15 @@ export const AppContextProvider: FC<AppContextProviderProps> = ({ children }) =>
       useSelector,
       currentWorkspace,
       isCurrentWorkspaceManager,
+      isCurrentWorkspaceOwner,
+      isCurrentWorkspaceEditor,
+      isCurrentWorkspaceDatasetOperator,
       mutateCurrentWorkspace,
+      isLoadingCurrentWorkspace,
     }}>
-      <div className='flex flex-col h-full overflow-y-auto'>
+      <div className='flex h-full flex-col overflow-y-auto'>
         {globalThis.document?.body?.getAttribute('data-public-maintenance-notice') && <MaintenanceNotice />}
-        <div ref={pageContainerRef} className='grow relative flex flex-col overflow-y-auto overflow-x-hidden bg-gray-100'>
+        <div ref={pageContainerRef} className='relative flex grow flex-col overflow-y-auto overflow-x-hidden bg-background-body'>
           {children}
         </div>
       </div>

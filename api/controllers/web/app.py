@@ -1,61 +1,113 @@
-# -*- coding:utf-8 -*-
-from flask_restful import marshal_with, fields
-from flask import current_app
+from flask import request
+from flask_restful import Resource, marshal_with, reqparse
 
+from controllers.common import fields
 from controllers.web import api
+from controllers.web.error import AppUnavailableError
 from controllers.web.wraps import WebApiResource
-
-from models.model import App
+from core.app.app_config.common.parameters_mapping import get_parameters_from_feature_dict
+from libs.passport import PassportService
+from models.model import App, AppMode
+from services.app_service import AppService
+from services.enterprise.enterprise_service import EnterpriseService
+from services.feature_service import FeatureService
+from services.webapp_auth_service import WebAppAuthService
 
 
 class AppParameterApi(WebApiResource):
     """Resource for app variables."""
-    variable_fields = {
-        'key': fields.String,
-        'name': fields.String,
-        'description': fields.String,
-        'type': fields.String,
-        'default': fields.String,
-        'max_length': fields.Integer,
-        'options': fields.List(fields.String)
-    }
 
-    system_parameters_fields = {
-        'image_file_size_limit': fields.String
-    }
-
-    parameters_fields = {
-        'opening_statement': fields.String,
-        'suggested_questions': fields.Raw,
-        'suggested_questions_after_answer': fields.Raw,
-        'speech_to_text': fields.Raw,
-        'retriever_resource': fields.Raw,
-        'more_like_this': fields.Raw,
-        'user_input_form': fields.Raw,
-        'sensitive_word_avoidance': fields.Raw,
-        'file_upload': fields.Raw,
-        'system_parameters': fields.Nested(system_parameters_fields)
-    }
-
-    @marshal_with(parameters_fields)
+    @marshal_with(fields.parameters_fields)
     def get(self, app_model: App, end_user):
         """Retrieve app parameters."""
-        app_model_config = app_model.app_model_config
+        if app_model.mode in {AppMode.ADVANCED_CHAT.value, AppMode.WORKFLOW.value}:
+            workflow = app_model.workflow
+            if workflow is None:
+                raise AppUnavailableError()
 
-        return {
-            'opening_statement': app_model_config.opening_statement,
-            'suggested_questions': app_model_config.suggested_questions_list,
-            'suggested_questions_after_answer': app_model_config.suggested_questions_after_answer_dict,
-            'speech_to_text': app_model_config.speech_to_text_dict,
-            'retriever_resource': app_model_config.retriever_resource_dict,
-            'more_like_this': app_model_config.more_like_this_dict,
-            'user_input_form': app_model_config.user_input_form_list,
-            'sensitive_word_avoidance': app_model_config.sensitive_word_avoidance_dict,
-            'file_upload': app_model_config.file_upload_dict,
-            'system_parameters': {
-                'image_file_size_limit': current_app.config.get('UPLOAD_IMAGE_FILE_SIZE_LIMIT')
-            }
-        }
+            features_dict = workflow.features_dict
+            user_input_form = workflow.user_input_form(to_old_structure=True)
+        else:
+            app_model_config = app_model.app_model_config
+            if app_model_config is None:
+                raise AppUnavailableError()
+
+            features_dict = app_model_config.to_dict()
+
+            user_input_form = features_dict.get("user_input_form", [])
+
+        return get_parameters_from_feature_dict(features_dict=features_dict, user_input_form=user_input_form)
 
 
-api.add_resource(AppParameterApi, '/parameters')
+class AppMeta(WebApiResource):
+    def get(self, app_model: App, end_user):
+        """Get app meta"""
+        return AppService().get_app_meta(app_model)
+
+
+class AppAccessMode(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("appId", type=str, required=False, location="args")
+        parser.add_argument("appCode", type=str, required=False, location="args")
+        args = parser.parse_args()
+
+        features = FeatureService.get_system_features()
+        if not features.webapp_auth.enabled:
+            return {"accessMode": "public"}
+
+        app_id = args.get("appId")
+        if args.get("appCode"):
+            app_code = args["appCode"]
+            app_id = AppService.get_app_id_by_code(app_code)
+
+        if not app_id:
+            raise ValueError("appId or appCode must be provided")
+
+        res = EnterpriseService.WebAppAuth.get_app_access_mode_by_id(app_id)
+
+        return {"accessMode": res.access_mode}
+
+
+class AppWebAuthPermission(Resource):
+    def get(self):
+        user_id = "visitor"
+        try:
+            auth_header = request.headers.get("Authorization")
+            if auth_header is None:
+                raise
+            if " " not in auth_header:
+                raise
+
+            auth_scheme, tk = auth_header.split(None, 1)
+            auth_scheme = auth_scheme.lower()
+            if auth_scheme != "bearer":
+                raise
+
+            decoded = PassportService().verify(tk)
+            user_id = decoded.get("user_id", "visitor")
+        except Exception as e:
+            pass
+
+        features = FeatureService.get_system_features()
+        if not features.webapp_auth.enabled:
+            return {"result": True}
+
+        parser = reqparse.RequestParser()
+        parser.add_argument("appId", type=str, required=True, location="args")
+        args = parser.parse_args()
+
+        app_id = args["appId"]
+        app_code = AppService.get_app_code_by_id(app_id)
+
+        res = True
+        if WebAppAuthService.is_app_require_permission_check(app_id=app_id):
+            res = EnterpriseService.WebAppAuth.is_user_allowed_to_access_webapp(str(user_id), app_code)
+        return {"result": res}
+
+
+api.add_resource(AppParameterApi, "/parameters")
+api.add_resource(AppMeta, "/meta")
+# webapp auth apis
+api.add_resource(AppAccessMode, "/webapp/access-mode")
+api.add_resource(AppWebAuthPermission, "/webapp/permission")

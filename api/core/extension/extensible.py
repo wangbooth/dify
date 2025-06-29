@@ -3,19 +3,21 @@ import importlib.util
 import json
 import logging
 import os
-from collections import OrderedDict
+from pathlib import Path
 from typing import Any, Optional
 
 from pydantic import BaseModel
 
+from core.helper.position_helper import sort_to_dict_by_position_map
+
 
 class ExtensionModule(enum.Enum):
-    MODERATION = 'moderation'
-    EXTERNAL_DATA_TOOL = 'external_data_tool'
+    MODERATION = "moderation"
+    EXTERNAL_DATA_TOOL = "external_data_tool"
 
 
 class ModuleExtension(BaseModel):
-    extension_class: Any
+    extension_class: Any = None
     name: str
     label: Optional[dict] = None
     form_schema: Optional[list] = None
@@ -36,44 +38,56 @@ class Extensible:
 
     @classmethod
     def scan_extensions(cls):
-        extensions = {}
+        extensions = []
+        position_map: dict[str, int] = {}
 
-        # get the path of the current class
-        current_path = os.path.abspath(cls.__module__.replace(".", os.path.sep) + '.py')
-        current_dir_path = os.path.dirname(current_path)
+        # Get the package name from the module path
+        package_name = ".".join(cls.__module__.split(".")[:-1])
 
-        # traverse subdirectories
-        for subdir_name in os.listdir(current_dir_path):
-            if subdir_name.startswith('__'):
-                continue
+        try:
+            # Get package directory path
+            package_spec = importlib.util.find_spec(package_name)
+            if not package_spec or not package_spec.origin:
+                raise ImportError(f"Could not find package {package_name}")
 
-            subdir_path = os.path.join(current_dir_path, subdir_name)
-            extension_name = subdir_name
-            if os.path.isdir(subdir_path):
+            package_dir = os.path.dirname(package_spec.origin)
+
+            # Traverse subdirectories
+            for subdir_name in os.listdir(package_dir):
+                if subdir_name.startswith("__"):
+                    continue
+
+                subdir_path = os.path.join(package_dir, subdir_name)
+                if not os.path.isdir(subdir_path):
+                    continue
+
+                extension_name = subdir_name
                 file_names = os.listdir(subdir_path)
 
-                # is builtin extension, builtin extension
-                # in the front-end page and business logic, there are special treatments.
-                builtin = False
-                position = None
-                if '__builtin__' in file_names:
-                    builtin = True
-
-                    builtin_file_path = os.path.join(subdir_path, '__builtin__')
-                    if os.path.exists(builtin_file_path):
-                        with open(builtin_file_path, 'r') as f:
-                            position = int(f.read().strip())
-
-                if (extension_name + '.py') not in file_names:
+                # Check for extension module file
+                if (extension_name + ".py") not in file_names:
                     logging.warning(f"Missing {extension_name}.py file in {subdir_path}, Skip.")
                     continue
 
-                # Dynamic loading {subdir_name}.py file and find the subclass of Extensible
-                py_path = os.path.join(subdir_path, extension_name + '.py')
-                spec = importlib.util.spec_from_file_location(extension_name, py_path)
+                # Check for builtin flag and position
+                builtin = False
+                position = 0
+                if "__builtin__" in file_names:
+                    builtin = True
+                    builtin_file_path = os.path.join(subdir_path, "__builtin__")
+                    if os.path.exists(builtin_file_path):
+                        position = int(Path(builtin_file_path).read_text(encoding="utf-8").strip())
+                    position_map[extension_name] = position
+
+                # Import the extension module
+                module_name = f"{package_name}.{extension_name}.{extension_name}"
+                spec = importlib.util.find_spec(module_name)
+                if not spec or not spec.loader:
+                    raise ImportError(f"Failed to load module {module_name}")
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
 
+                # Find extension class
                 extension_class = None
                 for name, obj in vars(mod).items():
                     if isinstance(obj, type) and issubclass(obj, cls) and obj != cls:
@@ -81,31 +95,39 @@ class Extensible:
                         break
 
                 if not extension_class:
-                    logging.warning(f"Missing subclass of {cls.__name__} in {py_path}, Skip.")
+                    logging.warning(f"Missing subclass of {cls.__name__} in {module_name}, Skip.")
                     continue
 
-                json_data = {}
+                # Load schema if not builtin
+                json_data: dict[str, Any] = {}
                 if not builtin:
-                    if 'schema.json' not in file_names:
+                    json_path = os.path.join(subdir_path, "schema.json")
+                    if not os.path.exists(json_path):
                         logging.warning(f"Missing schema.json file in {subdir_path}, Skip.")
                         continue
 
-                    json_path = os.path.join(subdir_path, 'schema.json')
-                    json_data = {}
-                    if os.path.exists(json_path):
-                        with open(json_path, 'r') as f:
-                            json_data = json.load(f)
+                    with open(json_path, encoding="utf-8") as f:
+                        json_data = json.load(f)
 
-                extensions[extension_name] = ModuleExtension(
-                    extension_class=extension_class,
-                    name=extension_name,
-                    label=json_data.get('label'),
-                    form_schema=json_data.get('form_schema'),
-                    builtin=builtin,
-                    position=position
+                # Create extension
+                extensions.append(
+                    ModuleExtension(
+                        extension_class=extension_class,
+                        name=extension_name,
+                        label=json_data.get("label"),
+                        form_schema=json_data.get("form_schema"),
+                        builtin=builtin,
+                        position=position,
+                    )
                 )
 
-        sorted_items = sorted(extensions.items(), key=lambda x: (x[1].position is None, x[1].position))
-        sorted_extensions = OrderedDict(sorted_items)
+        except Exception as e:
+            logging.exception("Error scanning extensions")
+            raise
+
+        # Sort extensions by position
+        sorted_extensions = sort_to_dict_by_position_map(
+            position_map=position_map, data=extensions, name_func=lambda x: x.name
+        )
 
         return sorted_extensions

@@ -3,7 +3,6 @@ import type { FC } from 'react'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useContext } from 'use-context-selector'
-import useSWR, { useSWRConfig } from 'swr'
 import AppCard from '@/app/components/app/overview/appCard'
 import Loading from '@/app/components/base/loading'
 import { ToastContext } from '@/app/components/base/toast'
@@ -18,20 +17,27 @@ import type { UpdateAppSiteCodeResponse } from '@/models/app'
 import { asyncRunSafe } from '@/utils'
 import { NEED_REFRESH_APP_LIST_KEY } from '@/config'
 import type { IAppCardProps } from '@/app/components/app/overview/appCard'
+import { useStore as useAppStore } from '@/app/components/app/store'
 
 export type ICardViewProps = {
   appId: string
+  isInPanel?: boolean
+  className?: string
 }
 
-const CardView: FC<ICardViewProps> = ({ appId }) => {
-  const detailParams = { url: '/apps', id: appId }
-  const { data: response } = useSWR(detailParams, fetchAppDetail)
-  const { mutate } = useSWRConfig()
-  const { notify } = useContext(ToastContext)
+const CardView: FC<ICardViewProps> = ({ appId, isInPanel, className }) => {
   const { t } = useTranslation()
+  const { notify } = useContext(ToastContext)
+  const appDetail = useAppStore(state => state.appDetail)
+  const setAppDetail = useAppStore(state => state.setAppDetail)
 
-  if (!response)
-    return <Loading />
+  const updateAppDetail = async () => {
+    try {
+      const res = await fetchAppDetail({ url: '/apps', id: appId })
+      setAppDetail({ ...res })
+    }
+    catch (error) { console.error(error) }
+  }
 
   const handleCallbackResult = (err: Error | null, message?: string) => {
     const type = err ? 'error' : 'success'
@@ -39,7 +45,7 @@ const CardView: FC<ICardViewProps> = ({ appId }) => {
     message ||= (type === 'success' ? 'modifiedSuccessfully' : 'modifiedUnsuccessfully')
 
     if (type === 'success')
-      mutate(detailParams)
+      updateAppDetail()
 
     notify({
       type,
@@ -92,18 +98,23 @@ const CardView: FC<ICardViewProps> = ({ appId }) => {
     handleCallbackResult(err, err ? 'generatedUnsuccessfully' : 'generatedSuccessfully')
   }
 
+  if (!appDetail)
+    return <Loading />
+
   return (
-    <div className="grid gap-6 grid-cols-1 xl:grid-cols-2 w-full mb-6">
+    <div className={className || 'mb-6 grid w-full grid-cols-1 gap-6 xl:grid-cols-2'}>
       <AppCard
-        appInfo={response}
+        appInfo={appDetail}
         cardType="webapp"
+        isInPanel={isInPanel}
         onChangeStatus={onChangeSiteStatus}
         onGenerateCode={onGenerateCode}
         onSaveSiteConfig={onSaveSiteConfig}
       />
       <AppCard
         cardType="api"
-        appInfo={response}
+        appInfo={appDetail}
+        isInPanel={isInPanel}
         onChangeStatus={onChangeApiStatus}
       />
     </div>

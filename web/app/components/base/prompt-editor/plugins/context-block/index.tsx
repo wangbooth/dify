@@ -1,5 +1,7 @@
-import type { FC } from 'react'
-import { useEffect } from 'react'
+import {
+  memo,
+  useEffect,
+} from 'react'
 import {
   $insertNodes,
   COMMAND_PRIORITY_EDITOR,
@@ -7,10 +9,12 @@ import {
 } from 'lexical'
 import { mergeRegister } from '@lexical/utils'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import type { ContextBlockType } from '../../types'
 import {
   $createContextBlockNode,
   ContextBlockNode,
 } from './node'
+import { noop } from 'lodash-es'
 
 export const INSERT_CONTEXT_BLOCK_COMMAND = createCommand('INSERT_CONTEXT_BLOCK_COMMAND')
 export const DELETE_CONTEXT_BLOCK_COMMAND = createCommand('DELETE_CONTEXT_BLOCK_COMMAND')
@@ -21,18 +25,13 @@ export type Dataset = {
   type: string
 }
 
-export type ContextBlockProps = {
-  datasets: Dataset[]
-  onAddContext: () => void
-  onInsert?: () => void
-  onDelete?: () => void
-}
-const ContextBlock: FC<ContextBlockProps> = ({
-  datasets,
-  onAddContext,
+const ContextBlock = memo(({
+  datasets = [],
+  onAddContext = noop,
   onInsert,
   onDelete,
-}) => {
+  canNotAddContext,
+}: ContextBlockType) => {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
@@ -43,7 +42,7 @@ const ContextBlock: FC<ContextBlockProps> = ({
       editor.registerCommand(
         INSERT_CONTEXT_BLOCK_COMMAND,
         () => {
-          const contextBlockNode = $createContextBlockNode(datasets, onAddContext)
+          const contextBlockNode = $createContextBlockNode(datasets, onAddContext, canNotAddContext)
 
           $insertNodes([contextBlockNode])
 
@@ -65,9 +64,12 @@ const ContextBlock: FC<ContextBlockProps> = ({
         COMMAND_PRIORITY_EDITOR,
       ),
     )
-  }, [editor, datasets, onAddContext, onInsert, onDelete])
+  }, [editor, datasets, onAddContext, onInsert, onDelete, canNotAddContext])
 
   return null
-}
+})
+ContextBlock.displayName = 'ContextBlock'
 
-export default ContextBlock
+export { ContextBlock }
+export { ContextBlockNode } from './node'
+export { default as ContextBlockReplacementBlock } from './context-block-replacement-block'

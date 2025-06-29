@@ -1,57 +1,97 @@
-# 贡献
+# 贡献指南
 
-感谢您对 [Dify](https://dify.ai) 的兴趣，并希望您能够做出贡献！在开始之前，请先阅读[行为准则](https://github.com/langgenius/.github/blob/main/CODE_OF_CONDUCT.md)并查看[现有问题](https://github.com/langgenius/dify/issues)。
-本文档介绍了如何设置开发环境以构建和测试 [Dify](https://dify.ai)。
+非常感谢你考虑为 Dify 做出贡献！作为一家资源有限的创业公司，我们希望打造最直观的 LLM 应用开发和管理工作流程。社区的每一份贡献对我们来说都弥足珍贵。
 
-### 安装依赖项
+我们需要保持敏捷和快速迭代，同时也希望确保贡献者能获得尽可能流畅的参与体验。这份贡献指南旨在帮助你熟悉代码库和我们的工作方式，让你可以尽快进入有趣的开发环节。
 
-您需要在计算机上安装和配置以下依赖项才能构建 [Dify](https://dify.ai)：
+本指南和 Dify 一样在不断完善中。如果有任何滞后于项目实际情况的地方，恳请谅解，我们也欢迎任何改进建议。
 
-- [Git](http://git-scm.com/)
-- [Docker](https://www.docker.com/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- [Node.js v18.x (LTS)](http://nodejs.org)
-- [npm](https://www.npmjs.com/) 版本 8.x.x 或 [Yarn](https://yarnpkg.com/)
-- [Python](https://www.python.org/) 版本 3.10.x
+关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](./LICENSE)。同时也请遵循社区[行为准则](https://github.com/langgenius/.github/blob/main/CODE_OF_CONDUCT.md)。
 
-## 本地开发
+## 开始之前
 
-要设置一个可工作的开发环境，只需 fork 项目的 git 存储库，并使用适当的软件包管理器安装后端和前端依赖项，然后创建并运行 docker-compose。
+想寻找可以着手的任务？浏览我们的[新手友好议题](https://github.com/langgenius/dify/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)并选择一个开始！
 
-### Fork存储库
+有酷炫的新模型运行时或工具要添加？在我们的[插件仓库](https://github.com/langgenius/dify-plugins)开启 PR，展示你的作品。
 
-您需要 fork [Git 仓库](https://github.com/langgenius/dify)。
+需要更新现有模型运行时、工具或修复 bug？前往我们的[官方插件仓库](https://github.com/langgenius/dify-official-plugins)大展身手！
 
-### 克隆存储库
+加入我们，一起贡献，共同打造精彩项目！💡✨
 
-克隆您在 GitHub 上 fork 的仓库：
+请记得在 PR 描述中关联现有 issue 或创建新的 issue。
 
-```
-git clone git@github.com:<github_username>/dify.git
-```
+### Bug 报告
 
-### 安装后端
+> [!IMPORTANT]
+> 提交 bug 报告时请务必包含以下信息：
 
-要了解如何安装后端应用程序，请参阅[后端 README](api/README.md)。
+- 清晰描述性的标题
+- 详细的 bug 描述，包括任何错误信息
+- 复现步骤
+- 预期行为
+- **日志**，如果是后端问题，这点很重要，可以在 docker-compose 日志中找到
+- 截图或视频（如果适用）
 
-### 安装前端
+优先级划分：
 
-要了解如何安装前端应用程序，请参阅[前端 README](web/README.md)。
+  | 问题类型                                           | 优先级     |
+  | -------------------------------------------------- | ---------- |
+  | 核心功能 bug（云服务、登录失败、应用无法使用、安全漏洞） | 紧急       |
+  | 非关键 bug、性能优化                                | 中等优先级 |
+  | 小修复（拼写错误、界面混乱但可用）                  | 低优先级   |
 
-### 在浏览器中访问 Dify
 
-最后，您现在可以访问 [http://localhost:3000](http://localhost:3000) 在本地环境中查看 [Dify](https://dify.ai)。
+### 功能请求
 
-## 创建拉取请求
+> [!NOTE]
+> 提交功能请求时请务必包含以下信息：
 
-在进行更改后，打开一个拉取请求（PR）。提交拉取请求后，Dify 团队/社区的其他人将与您一起审查它。
+- 清晰描述性的标题
+- 详细的功能描述
+- 功能使用场景
+- 其他相关上下文或截图
 
-如果遇到问题，比如合并冲突或不知道如何打开拉取请求，请查看 GitHub 的[拉取请求教程](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests)，了解如何解决合并冲突和其他问题。一旦您的 PR 被合并，您将自豪地被列为[贡献者表](https://github.com/langgenius/dify/graphs/contributors)中的一员。
+优先级划分：
 
-## 社区渠道
+  | 功能类型                                           | 优先级     |
+  | -------------------------------------------------- | ---------- |
+  | 被团队成员标记为高优先级的功能                      | 高优先级   |
+  | 来自[社区反馈板](https://github.com/langgenius/dify/discussions/categories/feedbacks)的热门功能请求 | 中等优先级 |
+  | 非核心功能和小改进                                  | 低优先级   |
+  | 有价值但非紧急的功能                                | 未来特性   |
 
-遇到困难了吗？有任何问题吗? 加入 [Discord Community Server](https://discord.gg/AhzKf7dNgk)，我们将为您提供帮助。
+## 提交 PR
 
-### 多语言支持
+### 项目设置
 
-需要参与贡献翻译内容，请参阅[前端多语言翻译 README](web/i18n/README_CN.md)。
+### PR 提交流程
+
+1. Fork 本仓库
+2. 在提交 PR 之前，请先创建 issue 讨论你想要做的修改
+3. 为你的修改创建一个新的分支
+4. 请为你的修改添加相应的测试
+5. 确保你的代码能通过现有的测试
+6. 请在 PR 描述中关联相关 issue，格式为 `fixes #<issue编号>`
+7. 等待合并！
+
+#### 前端
+
+关于前端服务的设置，请参考 `web/README.md` 文件中的[详细指南](https://github.com/langgenius/dify/blob/main/web/README.md)。该文档提供了帮助你正确配置前端环境的详细说明。
+
+#### 后端
+
+关于后端服务的设置，请参考 `api/README.md` 文件中的[详细说明](https://github.com/langgenius/dify/blob/main/api/README.md)。该文档包含了帮助你顺利运行后端的步骤说明。
+
+#### 其他注意事项
+
+我们建议在开始设置之前仔细阅读本文档，因为它包含以下重要信息：
+- 前置条件和依赖项
+- 安装步骤
+- 配置细节
+- 常见问题解决方案
+
+如果在设置过程中遇到任何问题，请随时联系我们。
+
+## 获取帮助
+
+如果你在贡献过程中遇到困难或有紧急问题，可以通过相关 GitHub issue 向我们提问，或加入我们的 [Discord](https://discord.gg/8Tpq4AcN9c) 进行快速交流。

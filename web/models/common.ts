@@ -1,3 +1,6 @@
+import type { I18nText } from '@/i18n/language'
+import type { Model } from '@/types/app'
+
 export type CommonResponse = {
   result: 'success' | 'fail'
 }
@@ -11,16 +14,22 @@ export type SetupStatusResponse = {
   setup_at?: Date
 }
 
+export type InitValidateStatusResponse = {
+  status: 'finished' | 'not_started'
+}
+
 export type UserProfileResponse = {
   id: string
   name: string
   email: string
   avatar: string
+  avatar_url: string | null
   is_password_set: boolean
   interface_language?: string
   interface_theme?: string
   timezone?: string
   last_login_at?: string
+  last_active_at?: string
   last_login_ip?: string
   created_at?: string
 }
@@ -55,10 +64,10 @@ export type TenantInfoResponse = {
   trial_end_reason: null | 'trial_exceeded' | 'using_custom'
 }
 
-export type Member = Pick<UserProfileResponse, 'id' | 'name' | 'email' | 'last_login_at' | 'created_at'> & {
+export type Member = Pick<UserProfileResponse, 'id' | 'name' | 'email' | 'last_login_at' | 'last_active_at' | 'created_at' | 'avatar_url'> & {
   avatar: string
   status: 'pending' | 'active' | 'banned' | 'closed'
-  role: 'owner' | 'admin' | 'normal'
+  role: 'owner' | 'admin' | 'editor' | 'normal' | 'dataset_operator'
 }
 
 export enum ProviderName {
@@ -119,10 +128,13 @@ export type IWorkspace = {
 }
 
 export type ICurrentWorkspace = Omit<IWorkspace, 'current'> & {
-  role: 'normal' | 'admin' | 'owner'
+  role: 'owner' | 'admin' | 'editor' | 'dataset_operator' | 'normal'
   providers: Provider[]
-  in_trail: boolean
   trial_end_reason?: string
+  custom_config?: {
+    remove_webapp_brand?: boolean
+    replace_webapp_logo?: string
+  }
 }
 
 export type DataSourceNotionPage = {
@@ -161,6 +173,38 @@ export type DataSourceNotion = {
   source_info: DataSourceNotionWorkspace
 }
 
+export enum DataSourceCategory {
+  website = 'website',
+}
+export enum DataSourceProvider {
+  fireCrawl = 'firecrawl',
+  jinaReader = 'jinareader',
+  waterCrawl = 'watercrawl',
+}
+
+export type FirecrawlConfig = {
+  api_key: string
+  base_url: string
+}
+
+export type WatercrawlConfig = {
+  api_key: string
+  base_url: string
+}
+
+export type DataSourceItem = {
+  id: string
+  category: DataSourceCategory
+  provider: DataSourceProvider
+  disabled: boolean
+  created_at: number
+  updated_at: number
+}
+
+export type DataSources = {
+  sources: DataSourceItem[]
+}
+
 export type GithubRepo = {
   stargazers_count: number
 }
@@ -174,14 +218,12 @@ export type PluginProvider = {
 }
 
 export type FileUploadConfigResponse = {
-  file_size_limit: number
   batch_count_limit: number
-  image_file_size_limit?: number | string
-}
-
-export type DocumentsLimitResponse = {
-  documents_count: number
-  documents_limit: number
+  image_file_size_limit?: number | string // default is 10MB
+  file_size_limit: number // default is 15MB
+  audio_file_size_limit?: number // default is 50MB
+  video_file_size_limit?: number // default is 100MB
+  workflow_file_upload_limit?: number // default is 10
 }
 
 export type InvitationResult = {
@@ -205,11 +247,6 @@ export type ApiBasedExtension = {
   api_key?: string
 }
 
-export type I18nText = {
-  'en-US': string
-  'zh-Hans': string
-}
-
 export type CodeBasedExtensionForm = {
   type: string
   label: I18nText
@@ -223,7 +260,7 @@ export type CodeBasedExtensionForm = {
 
 export type CodeBasedExtensionItem = {
   name: string
-  label: I18nText
+  label: any
   form_schema: CodeBasedExtensionForm[]
 }
 export type CodeBasedExtension = {
@@ -255,3 +292,13 @@ export type ModerationService = (
     text: string
   }
 ) => Promise<ModerateResponse>
+
+export type StructuredOutputRulesRequestBody = {
+  instruction: string
+  model_config: Model
+}
+
+export type StructuredOutputRulesResponse = {
+  output: string
+  error?: string
+}

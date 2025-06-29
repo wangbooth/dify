@@ -1,13 +1,27 @@
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
+import cn from '@/utils/classnames'
 
-const Placeholder = () => {
+const Placeholder = ({
+  compact,
+  value,
+  className,
+}: {
+  compact?: boolean
+  value?: string
+  className?: string
+}) => {
   const { t } = useTranslation()
 
   return (
-    <div className='absolute top-0 left-0 h-full w-full text-sm text-gray-300 select-none pointer-events-none leading-6'>
-      {t('common.promptEditor.placeholder')}
+    <div className={cn(
+      className,
+      'pointer-events-none absolute left-0 top-0 h-full w-full select-none text-sm text-components-input-text-placeholder',
+      compact ? 'text-[13px] leading-5' : 'text-sm leading-6',
+    )}>
+      {value || t('common.promptEditor.placeholder')}
     </div>
   )
 }
 
-export default Placeholder
+export default memo(Placeholder)

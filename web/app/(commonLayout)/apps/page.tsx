@@ -1,30 +1,31 @@
-import classNames from 'classnames'
+'use client'
+import { useTranslation } from 'react-i18next'
+import { RiDiscordFill, RiGithubFill } from '@remixicon/react'
+import Link from 'next/link'
 import style from '../list.module.css'
 import Apps from './Apps'
-import { getLocaleOnServer } from '@/i18n/server'
-import { useTranslation } from '@/i18n/i18next-serverside-config'
+import { useEducationInit } from '@/app/education-apply/hooks'
+import { useGlobalPublicStore } from '@/context/global-public-context'
 
-const AppList = async () => {
-  const locale = getLocaleOnServer()
-  const { t } = await useTranslation(locale, 'app')
-
+const AppList = () => {
+  const { t } = useTranslation()
+  useEducationInit()
+  const { systemFeatures } = useGlobalPublicStore()
   return (
-    <div className='flex flex-col overflow-auto bg-gray-100 shrink-0 grow'>
+    <div className='relative flex h-0 shrink-0 grow flex-col overflow-y-auto bg-background-body'>
       <Apps />
-      <footer className='px-12 py-6 grow-0 shrink-0'>
-        <h3 className='text-xl font-semibold leading-tight text-gradient'>{t('join')}</h3>
-        <p className='mt-1 text-sm font-normal leading-tight text-gray-700'>{t('communityIntro')}</p>
-        {/* <p className='mt-3 text-sm'> */}
-        {/*  <a className='inline-flex items-center gap-1 link' target='_blank' href={`https://docs.dify.ai${locale === 'en' ? '' : '/v/zh-hans'}/community/product-roadmap`}> */}
-        {/*    {t('roadmap')} */}
-        {/*    <span className={style.linkIcon} /> */}
-        {/*  </a> */}
-        {/* </p> */}
-        <div className='flex items-center gap-2 mt-3'>
-          <a className={style.socialMediaLink} target='_blank' href='https://github.com/langgenius/dify'><span className={classNames(style.socialMediaIcon, style.githubIcon)} /></a>
-          <a className={style.socialMediaLink} target='_blank' href='https://discord.gg/FngNHpbcY7'><span className={classNames(style.socialMediaIcon, style.discordIcon)} /></a>
+      {!systemFeatures.branding.enabled && <footer className='shrink-0 grow-0 px-12 py-6'>
+        <h3 className='text-gradient text-xl font-semibold leading-tight'>{t('app.join')}</h3>
+        <p className='system-sm-regular mt-1 text-text-tertiary'>{t('app.communityIntro')}</p>
+        <div className='mt-3 flex items-center gap-2'>
+          <Link className={style.socialMediaLink} target='_blank' rel='noopener noreferrer' href='https://github.com/langgenius/dify'>
+            <RiGithubFill className='h-5 w-5 text-text-tertiary' />
+          </Link>
+          <Link className={style.socialMediaLink} target='_blank' rel='noopener noreferrer' href='https://discord.gg/FngNHpbcY7'>
+            <RiDiscordFill className='h-5 w-5 text-text-tertiary' />
+          </Link>
         </div>
-      </footer>
+      </footer>}
     </div >
   )
 }
